@@ -3,7 +3,7 @@
 #include <eigen3/Eigen/Dense>
 
 int main() {
-    std::cout << "Hello,world！" << std::endl;
+
     Devices::MV_Camera c;
     c.open();
     cv::Mat read_img;
@@ -25,8 +25,8 @@ int main() {
     cv::Mat gray,mask,med;  //灰度图矩阵，二值化图矩阵，中值滤波图矩阵
     std::vector<std::vector<cv::Point>> contours;   //放二值化后检测到的轮廓用的向量
     std::vector<cv::Vec4i> hierarchy;   //cv::findContours中必须用的向量，该卡尔曼滤波未使用此功能，照着这样写就行
-    std::vector<cv::Point3f> shijie(4); //放世界坐标系用的向量，里面的元素都是三维点坐标
-    std::vector<cv::Point2f> xiangji(4);    //放相机坐标系用的向量，里面的元素都是二维点坐标
+    std::vector<cv::Point3f> world_vec(4); //放世界坐标系用的向量，里面的元素都是三维点坐标
+    std::vector<cv::Point2f> camera_vec(4);    //放相机坐标系用的向量，里面的元素都是二维点坐标
 
     
     cv::Point2f pts1[4];    
@@ -39,14 +39,14 @@ int main() {
 
 
 
-    double chang = 0.148;
-    double kuan = 0.062;
-    chang = chang/2;
-    kuan = kuan/2;
-    cv::Point3f wtop1(-chang,kuan,0);
-    cv::Point3f wtop2(chang,kuan,0);
-    cv::Point3f wbottom1(-chang,-kuan,0);
-    cv::Point3f wbottom2(chang,-kuan,0);
+    double len = 0.148;
+    double width = 0.062;
+    len = len/2;
+    width = width/2;
+    cv::Point3f wtop1(-len,width,0);
+    cv::Point3f wtop2(len,width,0);
+    cv::Point3f wbottom1(-len,-width,0);
+    cv::Point3f wbottom2(len,-width,0);
 
     cv::Mat rvec;
     cv::Mat tvec;
@@ -54,6 +54,7 @@ int main() {
     cv::Mat rotM;
     cv::Mat rotT;
 
+    // Unused variables
     double theta_x;
     double theta_y;
     double theta_z;
@@ -172,26 +173,26 @@ int main() {
 
                 }
 
-                xiangji[0] = top1;              //将“识别到的四个二维点”(就是上面一段求的)储存在xiangji向量中
-                xiangji[1] = top2;
-                xiangji[2] = bottom2;
-                xiangji[3] = bottom1;
+                camera_vec[0] = top1;              //将“识别到的四个二维点”(就是上面一段求的)储存在camera_vec向量中
+                camera_vec[1] = top2;
+                camera_vec[2] = bottom2;
+                camera_vec[3] = bottom1;
 
-                shijie[0] = wtop1;          //shijie向量中储存世界坐标系的点，要问世界坐标系怎么来的，是上面自己设的；关于怎么设，见文档“坐标系”
-                shijie[1] = wtop2;
-                shijie[2] = wbottom2;
-                shijie[3] = wbottom1;
+                world_vec[0] = wtop1;          //world_vec向量中储存世界坐标系的点，要问世界坐标系怎么来的，是上面自己设的；关于怎么设，见文档“坐标系”
+                world_vec[1] = wtop2;
+                world_vec[2] = wbottom2;
+                world_vec[3] = wbottom1;
 
-                cv::solvePnP(shijie,xiangji,cameraMatrix,distCoeffs,rvec,tvec,false,cv::SOLVEPNP_IPPE);     
+                cv::solvePnP(world_vec,camera_vec,cameraMatrix,distCoeffs,rvec,tvec,false,cv::SOLVEPNP_IPPE);     
                 //PnP解算，用法详见文档“pnp结算”把需要的数据喂进去即可，会吐出来所谓的旋转向量和平移向量，平移向量中储存的是(x,y,z)坐标，具体长什么样可以std::cout一下打印出来看看
                
 
 
                 //在画面中用数字标出四个点
-                cv::putText(img,"0",xiangji[0],cv::FONT_HERSHEY_SIMPLEX,1,cv::Scalar(0, 0, 255),4,8);
-                cv::putText(img,"1",xiangji[1],cv::FONT_HERSHEY_SIMPLEX,1,cv::Scalar(0, 0, 255),4,8);
-                cv::putText(img,"2",xiangji[2],cv::FONT_HERSHEY_SIMPLEX,1,cv::Scalar(0, 0, 255),4,8);
-                cv::putText(img,"3",xiangji[3],cv::FONT_HERSHEY_SIMPLEX,1,cv::Scalar(0, 0, 255),4,8);
+                cv::putText(img,"0",camera_vec[0],cv::FONT_HERSHEY_SIMPLEX,1,cv::Scalar(0, 0, 255),4,8);
+                cv::putText(img,"1",camera_vec[1],cv::FONT_HERSHEY_SIMPLEX,1,cv::Scalar(0, 0, 255),4,8);
+                cv::putText(img,"2",camera_vec[2],cv::FONT_HERSHEY_SIMPLEX,1,cv::Scalar(0, 0, 255),4,8);
+                cv::putText(img,"3",camera_vec[3],cv::FONT_HERSHEY_SIMPLEX,1,cv::Scalar(0, 0, 255),4,8);
 
 
                 //求两直线交点centre
