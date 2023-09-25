@@ -1,4 +1,4 @@
-# Install script for directory: /home/fuziming/MA/搞事情/卡尔曼滤波模仿/new1.3/devices
+# Install script for directory: /home/fuziming/MA/kalmen/MA-main（复件）/devices
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

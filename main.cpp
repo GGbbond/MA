@@ -13,21 +13,23 @@ int main() {
     cv::Mat cameraMatrix;
     cv::Mat distCoeffs;
 
+
+    //相机内参矩阵
     cameraMatrix = (cv::Mat_<double>(3,3) << 1562.718391961961,    4.478471970184, 616.284509563135,
                                                              0, 1563.803986201450, 489.040600564709,
                                                              0,                 0,                1);                 
     
     distCoeffs = (cv::Mat_<double>(5,1) << -0.088250992965441, 0.154271559512706, -0.000829270875611, -0.001394637877056, 0);
 
-    cv::Mat gray,mask,med;
-    std::vector<std::vector<cv::Point>> contours;
-    std::vector<cv::Vec4i> hierarchy;
-    std::vector<cv::Point3f> shijie(4);
-    std::vector<cv::Point2f> xiangji(4);
+    //定义一些变量
+    cv::Mat gray,mask,med;  //灰度图矩阵，二值化图矩阵，中值滤波图矩阵
+    std::vector<std::vector<cv::Point>> contours;   //放二值化后检测到的轮廓用的向量
+    std::vector<cv::Vec4i> hierarchy;   //cv::findContours中必须用的向量，该卡尔曼滤波未使用此功能，照着这样写就行
+    std::vector<cv::Point3f> shijie(4); //放世界坐标系用的向量，里面的元素都是三维点坐标
+    std::vector<cv::Point2f> xiangji(4);    //放相机坐标系用的向量，里面的元素都是二维点坐标
 
-    cv::RotatedRect target_rect;
-    cv::Point2f pts[4];
-    cv::Point2f pts1[4];
+    
+    cv::Point2f pts1[4];    
     cv::Point2f pts2[4];
     cv::Point2f top1;
     cv::Point2f bottom1;
@@ -78,7 +80,6 @@ int main() {
 
 
 
-    // Eigen::Matrix<double,6,6> P;
     Eigen::Matrix<double,6,6> P;
     P.setIdentity();
 
@@ -95,15 +96,14 @@ int main() {
 
 
 
-    // Eigen::Matrix<double,6,6> Q;
+    
     Eigen::Matrix<double,6,6> Q;
     Q.setIdentity();
 
 
     Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic> K;
 
-    // Eigen::Matrix<double,3,6> H;
-    // Eigen::Matrix<double,6,6> R;
+    
     Eigen::Matrix<double,3,6> H;
     Eigen::Matrix<double,3,3> R;
 
@@ -145,22 +145,22 @@ int main() {
 
         if(contours.size()>1)
             {
-                cv::RotatedRect rect1 = cv::minAreaRect(contours[0]); 
-                rect1.points(pts1);
-                std::sort(pts1,pts1 + 4, [](const cv::Point2f & a,const cv::Point & b){return a.y < b.y;});
-                top1 = (pts1[0] + pts1[1]) / 2;
-                bottom1 = (pts1[2] + pts1[3]) / 2;
-                cv::RotatedRect rect2 = cv::minAreaRect(contours[1]);
-                rect2.points(pts2);
+                cv::RotatedRect rect1 = cv::minAreaRect(contours[0]);   //创建最小的能够框出检测到的轮廓的旋转矩形
+                rect1.points(pts1);     //将矩形的四个点储存在pts1中
+                std::sort(pts1,pts1 + 4, [](const cv::Point2f & a,const cv::Point & b){return a.y < b.y;});     //给上句话的四个点排序，y越小放在越前面
+                top1 = (pts1[0] + pts1[1]) / 2;     //前两个pts1[0]和pts[1]的y小，一定是一个灯条拟合出的最小矩形的上面的两个点，求这两个点的中点。 (详见文档“灯条”页)
+                bottom1 = (pts1[2] + pts1[3]) / 2;      //和上面一样，求灯条下面的端点
+                cv::RotatedRect rect2 = cv::minAreaRect(contours[1]);   //因为是两个灯条，so理想情况下会识别到两个轮廓，这里和上面一样求第二个轮廓的上端点和下端点
+                rect2.points(pts2);     
                 std::sort(pts2,pts2 + 4, [](const cv::Point2f & a,const cv::Point & b){return a.y < b.y;});
                 top2 = (pts2[0] + pts2[1]) / 2;
                 bottom2 = (pts2[2] + pts2[3]) / 2;
 
-                cv::line(img,top1,bottom2,cv::Scalar(0,255,0),1,8,0);
+                cv::line(img,top1,bottom2,cv::Scalar(0,255,0),1,8,0);   //根据上面求的四个点在装甲板上画一个x
                 cv::line(img,top2,bottom1,cv::Scalar(0,255,0),1,8,0);
 
-                if(top1.x>top2.x){
-                    cv::Point2f top3;
+                if(top1.x>top2.x){                      //由于上面识别出来的轮廓不知道哪个是左边的哪个是右边的，so将他俩根据x坐标排一下序，
+                    cv::Point2f top3;                   //根据相机坐标系，x小的在左边，x大的在右边
                     top3 = top1;
                     top1 = top2;
                     top2 = top3;
@@ -172,22 +172,22 @@ int main() {
 
                 }
 
-                xiangji[0] = top1;
+                xiangji[0] = top1;              //将“识别到的四个二维点”(就是上面一段求的)储存在xiangji向量中
                 xiangji[1] = top2;
                 xiangji[2] = bottom2;
                 xiangji[3] = bottom1;
 
-                shijie[0] = wtop1;
+                shijie[0] = wtop1;          //shijie向量中储存世界坐标系的点，要问世界坐标系怎么来的，是上面自己设的；关于怎么设，见文档“坐标系”
                 shijie[1] = wtop2;
                 shijie[2] = wbottom2;
                 shijie[3] = wbottom1;
 
-                cv::solvePnP(shijie,xiangji,cameraMatrix,distCoeffs,rvec,tvec,false,cv::SOLVEPNP_ITERATIVE);
-                // std::cout<<"revc : "<<std::endl<<tvec.at<double>(2,0)<<std::endl;
-                // std::cout<<"juli is  : "<<std::endl<<(tvec.at<double>(2,0))<<std::endl;
-                // std::cout<<tvec<<std::endl;
+                cv::solvePnP(shijie,xiangji,cameraMatrix,distCoeffs,rvec,tvec,false,cv::SOLVEPNP_IPPE);     
+                //PnP解算，用法详见文档“pnp结算”把需要的数据喂进去即可，会吐出来所谓的旋转向量和平移向量，平移向量中储存的是(x,y,z)坐标，具体长什么样可以std::cout一下打印出来看看
+               
 
 
+                //在画面中用数字标出四个点
                 cv::putText(img,"0",xiangji[0],cv::FONT_HERSHEY_SIMPLEX,1,cv::Scalar(0, 0, 255),4,8);
                 cv::putText(img,"1",xiangji[1],cv::FONT_HERSHEY_SIMPLEX,1,cv::Scalar(0, 0, 255),4,8);
                 cv::putText(img,"2",xiangji[2],cv::FONT_HERSHEY_SIMPLEX,1,cv::Scalar(0, 0, 255),4,8);
@@ -203,79 +203,58 @@ int main() {
                 centre.x = (b2 - b1)/(k1 - k2);
                 centre.y = k1*centre.x + b1;
 
-                // //屏幕中心点
-                // cv::Point2f screen_centre;
-                // screen_centre.X = img.cols/2;
-                // screen_centre.y = img.rows/2;
-                // cv::circle(img,screen_centre,10,cv::Scalar(0,0,255),-1);
+                
 
 
                 
 
-                cv::circle(img,centre,10,cv::Scalar(0,255,0),-1);
+                cv::circle(img,centre,10,cv::Scalar(0,255,0),-1);       //画点用的
 
                 //时间戳
-                auto end_time = std::chrono::system_clock::now();
+                auto end_time = std::chrono::system_clock::now();       //记下现在的时间
         
                 new_time = end_time;
-                // auto waste_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
-                // auto waste_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time-start_time).count();
+               
                 auto waste_time = std::chrono::duration_cast<std::chrono::microseconds>(new_time-last_time).count();
-                last_time = end_time;
-                double t = waste_time * 0.000001;
-        
-                // std::cout << t << std::endl;
+                last_time = end_time;       //更新时间
+                double t = waste_time * 0.000001;   //微妙转换成秒  t为每次循环所用的时间
+                
+                //关于时间这里自己慢慢思考一下，应该能想明白
+
+               
 
 
                 //扩展卡尔曼//
 
                 //预测方程
-                X(1,0) = (tvec.at<double>(0,0) - X1(0,0)) / t;
-                X(3,0) = (tvec.at<double>(1,0) - X1(1,0)) / t;
+                X(1,0) = (tvec.at<double>(0,0) - X1(0,0)) / t;     //计算x,y,方向的速度，把它们放在X矩阵中该放的位置
+                X(3,0) = (tvec.at<double>(1,0) - X1(1,0)) / t;     //计算方法用上面pnp解算出的tvec的坐标，x,y,z分别(新的x-上次循环的x) / t;
                 X(5,0) = (tvec.at<double>(2,0) - X1(2,0)) / t;
 
-                //test
-                // std::cout << X(0,1) <<std::endl;
-                
-                // X1(0,0) = X(0,0);
-                // X1(0,1) = X(0,2);
-                // X1(0,2) = X(0,4);
+               
 
                 
 
-                X(0,0) = X(0,0) + X(1,0) * 0.1;
+                X(0,0) = X(0,0) + X(1,0) * 0.1;     //位置更新方程，原理就是 x = x0 + vt;
                 X(2,0) = X(2,0) + X(3,0) * 0.1;
                 X(4,0) = X(4,0) + X(5,0) * 0.1;
 
-                
-                //画出滤波后的点
+                //将预测后的点放进X3                
                 X3.at<double>(0,0) = X(0,0);
                 X3.at<double>(1,0) = X(2,0);
                 X3.at<double>(2,0) = X(4,0);
-                //test
-                std::cout<<"tvec is :"<<std::endl<<tvec<<std::endl;
-                std::cout<<"X3 is :"<<std::endl<<X3<<std::endl;
+               
 
                 
-
+                //将三维点转化为二维点,dian3在上面设为(0,0,0)，因为这里把装甲板中心点设为原点
                 cv::projectPoints(dian3,rvec,X3,cameraMatrix,distCoeffs,dian2);
-                //test
-                cv::projectPoints(dian3,rvec,tvec,cameraMatrix,distCoeffs,dian22);
-                jieguo1.x = dian22.at<double>(0,0);
-                jieguo1.y = dian22.at<double>(0,1);
-                cv::circle(img,jieguo1,10,cv::Scalar(255,0,0),-1);
-                //test
-                // std::cout<<"dian is :"<<std::endl<<dian2<<std::endl;
-                // std::cout<<"dian.x is :"<<std::endl<<dian2.at<double>(0,0)<<std::endl;
-                jieguo.x = dian2.at<double>(0,0);
+               
+                jieguo.x = dian2.at<double>(0,0);       //将dain2矩阵转换为jieguo二维点坐标
                 jieguo.y = dian2.at<double>(0,1);
-                cv::circle(img,jieguo,5,cv::Scalar(0,0,255),-1);
-                // std::cout<<"jieguo is :"<<std::endl<<jieguo<<std::endl;
-
-                //test
-                // std::cout << X(0,0) <<std::endl;
-
+                cv::circle(img,jieguo,5,cv::Scalar(0,0,255),-1);    //在图中画出jieguo这个点，使预测的数据能够更直观的表现在画面中
+               
                 
+                //以下内容解释详见""公式解释"文档
 
                 F <<    1,  0.1,  0,  0,  0,  0,
                         0,  1,  0,  0,  0,  0,
@@ -284,15 +263,6 @@ int main() {
                         0,  0,  0,  0,  1,  0.1,
                         0,  0,  0,  0,  0,  1;
 
-                //test
-                // F <<    1,  0,  0,  0,  0,  0,
-                //         0,  1,  0,  0,  0,  0,
-                //         0,  0,  1,  0,  0,  0,
-                //         0,  0,  0,  1,  0,  0,
-                //         0,  0,  0,  0,  1,  0,
-                //         0,  0,  0,  0,  0,  1;
-                // std::cout << F <<std::endl;   
-                
      
 
                 variable1 = pow(t,4) / 4;
@@ -306,48 +276,36 @@ int main() {
                                 0,          0,          0,          0,  variable3,  variable2;
 
                 Q = Q * a;
-                //test
-                // std::cout << Q <<std::endl;   
+              
                 
                 P = F * P * F.transpose() + Q;
 
-                //test
-                // std::cout << "P is : "<<std::endl<<P <<std::endl;   
-
+               
 
                 //更新方程
-                //H
+                //Hnew1.3
                 H <<    1,  0,  0,  0,  0,  0,
                         0,  0,  1,  0,  0,  0,
                         0,  0,  0,  0,  1,  0,
                 
                 
-                // std::cout<< H << std::endl;
-
+             
                 //(R矩阵中的值待估计）
                 R <<    0,  0,  0,
                         0,  0,  0,
                         0,  0,  0;
 
                 K = P * H.transpose() * (H * P * H.transpose() + R).inverse();
-                //test
-                // std::cout<<"K is : "<<std::endl<<K<<std::endl;
-
+               
                 
                 X2 << tvec.at<double>(0,0),tvec.at<double>(1,0),tvec.at<double>(2,0);
-                // X(0,0) = X(0,0) + K * (tvec.at<double>(0,0) - X(0,0));
-                // X(0,2) = X(0,2) + K * (tvec.at<double>(0,1) - X(0,2));
-                // X(0,4) = X(0,4) + K * (tvec.at<double>(0,2) - X(0,4));
+              
 
                 X = X + K * (X2 - H * X);
-                //test
-                // std::cout<<"X is : "<<std::endl<<X<<std::endl;
-
+               
 
                 P = (I - K * H) * P;
-                //test
-                // std::cout<<"P is : "<<std::endl<<P<<std::endl;
-
+               
                 
 
 
@@ -356,38 +314,6 @@ int main() {
                 X1(1,0) = tvec.at<double>(1,0);
                 X1(2,0) = tvec.at<double>(2,0);
 
-
-
-                // //打印输出坐标
-                // std::cout<<"zuobiao is : "<<std::endl;
-                // std::cout<<X(0,0)<<std::endl;
-                // std::cout<<X(2,0)<<std::endl;
-                // std::cout<<X(4,0)<<std::endl;
-
-                
-                //画出滤波后的点
-                // X3.at<double>(0,0) = X(0,0);
-                // X3.at<double>(1,0) = X(2,0);
-                // X3.at<double>(2,0) = X(4,0);
-                //test
-                std::cout<<"tvec is :"<<std::endl<<tvec<<std::endl;
-                std::cout<<"X3 is :"<<std::endl<<X3<<std::endl;
-
-                
-
-                cv::projectPoints(dian3,rvec,X3,cameraMatrix,distCoeffs,dian2);
-                //test
-                cv::projectPoints(dian3,rvec,tvec,cameraMatrix,distCoeffs,dian22);
-                jieguo1.x = dian22.at<double>(0,0);
-                jieguo1.y = dian22.at<double>(0,1);
-                cv::circle(img,jieguo1,10,cv::Scalar(255,0,0),-1);
-                //test
-                // std::cout<<"dian is :"<<std::endl<<dian2<<std::endl;
-                // std::cout<<"dian.x is :"<<std::endl<<dian2.at<double>(0,0)<<std::endl;
-                jieguo.x = dian2.at<double>(0,0);
-                jieguo.y = dian2.at<double>(0,1);
-                cv::circle(img,jieguo,5,cv::Scalar(0,0,255),-1);
-                // std::cout<<"jieguo is :"<<std::endl<<jieguo<<std::endl;
 
             }
 

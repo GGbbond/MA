@@ -22,7 +22,7 @@ public:
 class MV_Camera
 {
 public:
-    explicit MV_Camera(const char *camera_cfg = "/home/fuziming/MA/搞事情/卡尔曼滤波模仿/new/Configs/camera/MV-SUA133GC-T-Manifold.config");
+    explicit MV_Camera(const char *camera_cfg = "/home/fuziming/MA/kalmen/MA-main（复件）/Configs/camera/MV-SUA133GC-T-Manifold.config");
 
     bool open();
 

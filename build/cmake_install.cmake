@@ -1,4 +1,4 @@
-# Install script for directory: /home/fuziming/MA/搞事情/卡尔曼滤波模仿/new1.3
+# Install script for directory: /home/fuziming/MA/kalmen/MA-main（复件）
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -44,7 +44,7 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("/home/fuziming/MA/搞事情/卡尔曼滤波模仿/new1.3/build/devices/cmake_install.cmake")
+  include("/home/fuziming/MA/kalmen/MA-main（复件）/build/devices/cmake_install.cmake")
 endif()
 
 if(CMAKE_INSTALL_COMPONENT)
@@ -55,5 +55,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/fuziming/MA/搞事情/卡尔曼滤波模仿/new1.3/build/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/home/fuziming/MA/kalmen/MA-main（复件）/build/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
